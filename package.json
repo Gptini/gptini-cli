@@ -1,0 +1,40 @@
+{
+  "name": "gptini-cli",
+  "version": "1.0.0",
+  "description": "GPTini CLI - Chat from your terminal",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "gptini": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js"
+  },
+  "keywords": [
+    "chat",
+    "cli",
+    "tui",
+    "gptini"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@stomp/stompjs": "^7.0.0",
+    "@types/sockjs-client": "^1.5.4",
+    "axios": "^1.6.0",
+    "conf": "^12.0.0",
+    "ink": "^5.0.1",
+    "ink-text-input": "^6.0.0",
+    "react": "^18.2.0",
+    "sockjs-client": "^1.6.1",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.0.0"
+  }
+}
