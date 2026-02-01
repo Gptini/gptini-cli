@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function RoomsScreen({ onSelectRoom }: Props) {
-  const { theme } = useTheme()
+  const { theme, themeMode, toggleTheme } = useTheme()
   const [rooms, setRooms] = useState<Room[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -58,6 +58,9 @@ export default function RoomsScreen({ onSelectRoom }: Props) {
     if (input === 'q') {
       clearAuth()
       process.exit(0)
+    }
+    if (input === 't') {
+      toggleTheme()
     }
   })
 
@@ -119,8 +122,9 @@ export default function RoomsScreen({ onSelectRoom }: Props) {
         </Box>
       )}
 
-      <Box marginTop={1}>
-        <Text color={theme.textMuted}>↑↓: 선택 | Enter: 입장 | r: 새로고침 | q: 로그아웃</Text>
+      <Box marginTop={1} justifyContent="space-between">
+        <Text color={theme.textMuted}>↑↓: 선택 | Enter: 입장 | r: 새로고침 | t: 테마 | q: 로그아웃</Text>
+        <Text color={theme.textMuted}>[{themeMode === 'dark' ? '🌙' : '☀️'}]</Text>
       </Box>
     </Box>
   )

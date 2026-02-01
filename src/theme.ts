@@ -14,27 +14,29 @@ export interface Theme {
   background: string
 }
 
+// Light: 흰 배경 터미널용 (어두운 색상 사용)
 const lightTheme: Theme = {
-  primary: 'blue',
-  secondary: 'cyan',
+  primary: 'blueBright',
+  secondary: 'magenta',
   success: 'green',
   error: 'red',
   warning: 'yellow',
   text: 'black',
-  textMuted: 'gray',
-  border: 'gray',
+  textMuted: 'blackBright',
+  border: 'blackBright',
   myMessage: 'green',
   otherMessage: 'blue',
   background: 'white'
 }
 
+// Dark: 검은 배경 터미널용 (밝은 색상 사용)
 const darkTheme: Theme = {
-  primary: 'cyan',
-  secondary: 'blue',
+  primary: 'cyanBright',
+  secondary: 'magentaBright',
   success: 'greenBright',
   error: 'redBright',
   warning: 'yellowBright',
-  text: 'white',
+  text: 'whiteBright',
   textMuted: 'gray',
   border: 'gray',
   myMessage: 'greenBright',

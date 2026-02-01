@@ -18,8 +18,8 @@ const projectName = profile === 'default' ? 'gptini-cli' : `gptini-cli-${profile
 const config = new Conf<Config>({
   projectName,
   defaults: {
-    apiUrl: 'http://localhost:8080',
-    wsUrl: 'http://localhost:8080/ws',
+    apiUrl: 'https://api.gptini.org',
+    wsUrl: 'https://api.gptini.org/ws',
     theme: 'dark'
   }
 })
