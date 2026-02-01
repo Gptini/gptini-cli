@@ -37,8 +37,8 @@ const darkTheme: Theme = {
   error: 'redBright',
   warning: 'yellowBright',
   text: 'whiteBright',
-  textMuted: 'gray',
-  border: 'gray',
+  textMuted: '#CC7832',  // 주황색 (Claude Code 스타일)
+  border: 'whiteBright',
   myMessage: 'greenBright',
   otherMessage: 'cyanBright',
   background: 'black'
