@@ -99,7 +99,7 @@ export default function LoginScreen({ onSuccess }: Props) {
             <Text bold={selectedTheme === 'dark'} color={selectedTheme === 'dark' ? theme.primary : theme.textMuted}>
               🌙 Dark
             </Text>
-            <Text>  </Text>
+            <Text color={theme.text}>  </Text>
             <Text color={selectedTheme === 'light' ? theme.primary : theme.textMuted}>
               {selectedTheme === 'light' ? '▶ ' : '  '}
             </Text>
