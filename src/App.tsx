@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import { isLoggedIn } from './config.js'
 import { ThemeProvider, useTheme } from './context/ThemeContext.js'
+import { useTerminalSize } from './hooks/useTerminalSize.js'
 import LoginScreen from './screens/LoginScreen.js'
 import RoomsScreen from './screens/RoomsScreen.js'
 import ChatScreen from './screens/ChatScreen.js'
@@ -11,6 +12,7 @@ type Screen = 'login' | 'rooms' | 'chat'
 function AppContent() {
   const { exit } = useApp()
   const { theme, themeMode, toggleTheme } = useTheme()
+  const terminalSize = useTerminalSize()
   const [screen, setScreen] = useState<Screen>(isLoggedIn() ? 'rooms' : 'login')
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null)
   const [selectedRoomName, setSelectedRoomName] = useState<string>('')
@@ -40,6 +42,19 @@ function AppContent() {
     setScreen('rooms')
   }
 
+  // 채팅 화면은 풀스크린으로 완전히 다른 레이아웃
+  if (screen === 'chat' && selectedRoomId) {
+    return (
+      <ChatScreen
+        roomId={selectedRoomId}
+        roomName={selectedRoomName}
+        onBack={handleBackToRooms}
+        terminalSize={terminalSize}
+      />
+    )
+  }
+
+  // 나머지 화면은 기존 레이아웃
   return (
     <Box flexDirection="column" padding={1}>
       <Box marginBottom={1}>
@@ -60,13 +75,6 @@ function AppContent() {
 
       {screen === 'login' && <LoginScreen onSuccess={handleLoginSuccess} />}
       {screen === 'rooms' && <RoomsScreen onSelectRoom={handleSelectRoom} />}
-      {screen === 'chat' && selectedRoomId && (
-        <ChatScreen
-          roomId={selectedRoomId}
-          roomName={selectedRoomName}
-          onBack={handleBackToRooms}
-        />
-      )}
 
       <Box marginTop={1} justifyContent="space-between">
         <Text color={theme.textMuted}>Ctrl+C: 종료 | t: 테마 변경</Text>
