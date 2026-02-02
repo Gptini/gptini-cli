@@ -40,7 +40,7 @@ const darkTheme: Theme = {
   textMuted: 'yellow',  // 주황/노란색 - 검은 배경에서 잘 보임
   border: 'whiteBright',
   myMessage: 'greenBright',
-  otherMessage: 'cyanBright',
+  otherMessage: 'yellow',
   background: 'black'
 }
 

@@ -148,7 +148,7 @@ export default function ChatScreen({ roomId, roomName, onBack }: Props) {
                 ) : (
                   <Box>
                     <Text color={theme.otherMessage} bold>{msg.senderNickname}</Text>
-                    <Text color={theme.text}>: {msg.content} </Text>
+                    <Text color={theme.otherMessage}>: {msg.content} </Text>
                     <Text color={theme.textMuted}>{formatTime(msg.createdAt)}</Text>
                   </Box>
                 )}
