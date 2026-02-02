@@ -15,11 +15,15 @@ interface Config {
 const profile = process.env.GPTINI_PROFILE || 'default'
 const projectName = profile === 'default' ? 'gptini-cli' : `gptini-cli-${profile}`
 
+// 환경변수 우선, 없으면 기본값 사용
+const defaultApiUrl = process.env.GPTINI_API_URL || 'https://api.gptini.org'
+const defaultWsUrl = process.env.GPTINI_WS_URL || 'https://api.gptini.org/ws'
+
 const config = new Conf<Config>({
   projectName,
   defaults: {
-    apiUrl: 'https://api.gptini.org',
-    wsUrl: 'https://api.gptini.org/ws',
+    apiUrl: defaultApiUrl,
+    wsUrl: defaultWsUrl,
     theme: 'dark'
   }
 })
@@ -37,8 +41,9 @@ export const getUser = () => ({
   userId: config.get('userId'),
   nickname: config.get('nickname')
 })
-export const getApiUrl = () => config.get('apiUrl')
-export const getWsUrl = () => config.get('wsUrl')
+// 환경변수가 있으면 우선 사용
+export const getApiUrl = () => process.env.GPTINI_API_URL || config.get('apiUrl')
+export const getWsUrl = () => process.env.GPTINI_WS_URL || config.get('wsUrl')
 export const clearAuth = () => {
   config.delete('accessToken')
   config.delete('refreshToken')
