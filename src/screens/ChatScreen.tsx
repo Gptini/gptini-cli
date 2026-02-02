@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
 import { Client } from '@stomp/stompjs'
@@ -35,9 +35,53 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
   const [loading, setLoading] = useState(true)
   const [scrollOffset, setScrollOffset] = useState(0)
   const clientRef = useRef<Client | null>(null)
+
+  // 읽음 처리용 ref
+  const lastSentReadIdRef = useRef<number | null>(null)
+  const pendingReadIdRef = useRef<number | null>(null)
+  const readTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const isInitialLoadRef = useRef(true)
+
   const { userId } = getUser()
 
   const { rows, columns } = terminalSize
+
+  // 읽음 처리 전송 함수
+  const flushRead = useCallback(() => {
+    const messageId = pendingReadIdRef.current
+
+    // 타이머 정리 (항상 먼저 실행)
+    if (readTimerRef.current) {
+      clearTimeout(readTimerRef.current)
+      readTimerRef.current = null
+    }
+
+    if (messageId === null) return
+    if (messageId === lastSentReadIdRef.current) return // 중복 방지
+    if (!clientRef.current?.connected) return
+
+    // WebSocket으로 읽음 처리 전송
+    clientRef.current.publish({
+      destination: `/pub/chat/rooms/${roomId}/read`,
+      body: JSON.stringify({ messageId })
+    })
+
+    lastSentReadIdRef.current = messageId
+    pendingReadIdRef.current = null
+  }, [roomId])
+
+  // 읽음 처리 스케줄링 (throttle)
+  const scheduleReadFlush = useCallback((messageId: number) => {
+    // pending 값은 항상 덮어쓰기 (마지막 ID만 유지)
+    pendingReadIdRef.current = messageId
+
+    // 이미 타이머가 있으면 스킵 (throttle)
+    if (readTimerRef.current) return
+
+    readTimerRef.current = setTimeout(() => {
+      flushRead()
+    }, 300) // 300ms throttle
+  }, [flushRead])
 
   // 레이아웃 계산
   const headerHeight = 1
@@ -48,10 +92,25 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
   const chatHeight = Math.max(5, rows - headerHeight - separatorHeight * 2 - inputHeight - helpHeight - paddingHeight)
 
   useEffect(() => {
+    isInitialLoadRef.current = true
     loadMessages()
     connectWebSocket()
 
     return () => {
+      // pending 읽음 처리 즉시 전송
+      if (readTimerRef.current) {
+        clearTimeout(readTimerRef.current)
+        readTimerRef.current = null
+      }
+      if (pendingReadIdRef.current !== null && pendingReadIdRef.current !== lastSentReadIdRef.current) {
+        if (clientRef.current?.connected) {
+          clientRef.current.publish({
+            destination: `/pub/chat/rooms/${roomId}/read`,
+            body: JSON.stringify({ messageId: pendingReadIdRef.current })
+          })
+        }
+      }
+
       if (clientRef.current) {
         clientRef.current.deactivate()
       }
@@ -70,6 +129,13 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
       const data = await getMessages(roomId)
       setMessages(data)
       setLoading(false)
+
+      // 초기 로드 시 마지막 메시지 읽음 처리
+      if (data.length > 0) {
+        const lastMsg = data[data.length - 1]
+        pendingReadIdRef.current = lastMsg.messageId
+        // WebSocket 연결 후 전송되도록 대기
+      }
     } catch (err) {
       setLoading(false)
     }
@@ -89,9 +155,21 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
         setConnected(true)
 
         client.subscribe(`/sub/chat/rooms/${roomId}`, (message) => {
-          const msg = JSON.parse(message.body)
-          setMessages((prev) => [...prev, msg])
+          try {
+            const msg = JSON.parse(message.body)
+            setMessages((prev) => [...prev, msg])
+
+            // 새 메시지 도착 시 읽음 처리 (throttle)
+            scheduleReadFlush(msg.messageId)
+          } catch (e) {
+            // 에러 발생해도 구독 유지
+          }
         })
+
+        // 연결 완료 후 pending 읽음 처리 전송
+        if (pendingReadIdRef.current !== null) {
+          flushRead()
+        }
       },
       onDisconnect: () => {
         setConnected(false)
