@@ -6,6 +6,14 @@ import SockJS from 'sockjs-client'
 import { getMessages } from '../api.js'
 import { getToken, getWsUrl, getUser } from '../config.js'
 import { useTheme } from '../context/ThemeContext.js'
+import { appendFileSync } from 'fs'
+import { homedir } from 'os'
+import { join } from 'path'
+
+const logFile = join(homedir(), 'gptini-debug.log')
+const debugLog = (msg: string) => {
+  appendFileSync(logFile, `[${new Date().toISOString()}] ${msg}\n`)
+}
 
 interface Message {
   messageId: number
@@ -56,9 +64,20 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
       readTimerRef.current = null
     }
 
-    if (messageId === null) return
-    if (messageId === lastSentReadIdRef.current) return // 중복 방지
-    if (!clientRef.current?.connected) return
+    if (messageId === null) {
+      debugLog('[READ] messageId is null')
+      return
+    }
+    if (messageId === lastSentReadIdRef.current) {
+      debugLog(`[READ] duplicate, skipping: ${messageId}`)
+      return // 중복 방지
+    }
+    if (!clientRef.current?.connected) {
+      debugLog('[READ] not connected')
+      return
+    }
+
+    debugLog(`[READ] sending read: roomId=${roomId}, messageId=${messageId}`)
 
     // WebSocket으로 읽음 처리 전송
     clientRef.current.publish({
