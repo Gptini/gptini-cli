@@ -1,6 +1,6 @@
 {
   "name": "gptini-cli",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "GPTini CLI - Chat from your terminal",
   "type": "module",
   "main": "dist/index.js",
