@@ -22,8 +22,8 @@ const defaultWsUrl = process.env.GPTINI_WS_URL || 'https://api.gptini.org/ws'
 const config = new Conf<Config>({
   projectName,
   defaults: {
-    apiUrl: defaultApiUrl,
-    wsUrl: defaultWsUrl,
+    apiUrl: 'https://api.gptini.org',
+    wsUrl: 'https://api.gptini.org/ws',
     theme: 'dark'
   }
 })

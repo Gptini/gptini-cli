@@ -13,9 +13,10 @@ interface Room {
 
 interface Props {
   onSelectRoom: (roomId: number, roomName: string) => void
+  onAuthError: () => void
 }
 
-export default function RoomsScreen({ onSelectRoom }: Props) {
+export default function RoomsScreen({ onSelectRoom, onAuthError }: Props) {
   const { theme, themeMode, toggleTheme } = useTheme()
   const [rooms, setRooms] = useState<Room[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -32,8 +33,14 @@ export default function RoomsScreen({ onSelectRoom }: Props) {
       const data = await getChatRooms()
       setRooms(data)
       setLoading(false)
-    } catch (err) {
-      setError('채팅방 목록을 불러오지 못했습니다')
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 401 || status === 403) {
+        onAuthError()
+        return
+      }
+      const msg = err?.response?.data?.message || err?.message || String(err)
+      setError(`채팅방 목록을 불러오지 못했습니다: ${msg}`)
       setLoading(false)
     }
   }

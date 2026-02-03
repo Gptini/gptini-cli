@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
-import { isLoggedIn } from './config.js'
+import { isLoggedIn, clearAuth } from './config.js'
 import { ThemeProvider, useTheme } from './context/ThemeContext.js'
 import { useTerminalSize } from './hooks/useTerminalSize.js'
 import LoginScreen from './screens/LoginScreen.js'
@@ -42,6 +42,11 @@ function AppContent() {
     setScreen('rooms')
   }
 
+  const handleAuthError = () => {
+    clearAuth()
+    setScreen('login')
+  }
+
   // 채팅 화면은 풀스크린으로 완전히 다른 레이아웃
   if (screen === 'chat' && selectedRoomId) {
     return (
@@ -74,7 +79,7 @@ function AppContent() {
       </Box>
 
       {screen === 'login' && <LoginScreen onSuccess={handleLoginSuccess} />}
-      {screen === 'rooms' && <RoomsScreen onSelectRoom={handleSelectRoom} />}
+      {screen === 'rooms' && <RoomsScreen onSelectRoom={handleSelectRoom} onAuthError={handleAuthError} />}
 
       <Box marginTop={1} justifyContent="space-between">
         <Text color={theme.textMuted}>Ctrl+C: 종료 | t: 테마 변경</Text>
