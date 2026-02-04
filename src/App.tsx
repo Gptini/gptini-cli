@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Box, Text, useApp, useInput } from 'ink'
 import { isLoggedIn, clearAuth } from './config.js'
 import { ThemeProvider, useTheme } from './context/ThemeContext.js'
@@ -13,7 +13,10 @@ function AppContent() {
   const { exit } = useApp()
   const { theme, themeMode, toggleTheme } = useTheme()
   const terminalSize = useTerminalSize()
-  const [screen, setScreen] = useState<Screen>(isLoggedIn() ? 'rooms' : 'login')
+
+  const [screen, setScreen] = useState<Screen>(() => {
+    return isLoggedIn() ? 'rooms' : 'login'
+  })
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null)
   const [selectedRoomName, setSelectedRoomName] = useState<string>('')
 

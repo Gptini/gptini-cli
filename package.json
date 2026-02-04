@@ -25,6 +25,7 @@
     "@types/sockjs-client": "^1.5.4",
     "axios": "^1.6.0",
     "conf": "^12.0.0",
+    "gptini-cli": "^1.0.11",
     "ink": "^5.0.1",
     "ink-text-input": "^6.0.0",
     "react": "^18.2.0",
