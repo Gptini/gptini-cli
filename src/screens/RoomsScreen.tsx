@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, memo } from 'react'
+import React, { useState, useEffect, useRef, memo, useMemo } from 'react'
 import { Box, Text, useInput } from 'ink'
 import { getChatRooms } from '../api.js'
 import { getUser, clearAuth } from '../config.js'
 import { useTheme } from '../context/ThemeContext.js'
+import { useChatStore } from '../stores/chatStore.js'
 
 interface Room {
   id: number
@@ -138,7 +139,43 @@ export default function RoomsScreen({ onSelectRoom, onAuthError }: Props) {
 
   // getUser()를 ref로 캐싱
   const userRef = useRef(getUser())
-  const { nickname } = userRef.current
+  const { userId, nickname } = userRef.current
+
+  // WebSocket store
+  const { connect, disconnect, isConnected, roomUpdates } = useChatStore()
+
+  // WebSocket 연결
+  useEffect(() => {
+    if (userId && !isConnected) {
+      connect(userId)
+    }
+  }, [userId, isConnected, connect])
+
+  // roomUpdates를 rooms에 병합
+  const displayRooms = useMemo(() => {
+    if (roomUpdates.size === 0) return rooms
+
+    return rooms.map((room) => {
+      const update = roomUpdates.get(room.id)
+      if (!update) return room
+
+      return {
+        ...room,
+        lastMessage: update.lastMessage,
+        unreadCount: update.unreadCount,
+      }
+    }).sort((a, b) => {
+      // 최근 업데이트된 방을 위로
+      const aUpdate = roomUpdates.get(a.id)
+      const bUpdate = roomUpdates.get(b.id)
+      if (aUpdate && bUpdate) {
+        return new Date(bUpdate.lastMessageTime).getTime() - new Date(aUpdate.lastMessageTime).getTime()
+      }
+      if (aUpdate) return -1
+      if (bUpdate) return 1
+      return 0
+    })
+  }, [rooms, roomUpdates])
 
   useEffect(() => {
     loadRooms()
@@ -168,10 +205,10 @@ export default function RoomsScreen({ onSelectRoom, onAuthError }: Props) {
       setSelectedIndex((prev) => Math.max(0, prev - 1))
     }
     if (key.downArrow) {
-      setSelectedIndex((prev) => Math.min(rooms.length - 1, prev + 1))
+      setSelectedIndex((prev) => Math.min(displayRooms.length - 1, prev + 1))
     }
-    if (key.return && rooms.length > 0) {
-      const room = rooms[selectedIndex]
+    if (key.return && displayRooms.length > 0) {
+      const room = displayRooms[selectedIndex]
       onSelectRoom(room.id, room.name)
     }
     if (input === 'r') {
@@ -182,6 +219,7 @@ export default function RoomsScreen({ onSelectRoom, onAuthError }: Props) {
       process.exit(0)
     }
     if (input === 'L') {
+      disconnect()  // WebSocket 연결 끊기
       clearAuth()
       process.exit(0)
     }
@@ -208,8 +246,8 @@ export default function RoomsScreen({ onSelectRoom, onAuthError }: Props) {
 
   return (
     <Box flexDirection="column">
-      <RoomsHeader nickname={nickname} roomCount={rooms.length} />
-      <RoomList rooms={rooms} selectedIndex={selectedIndex} />
+      <RoomsHeader nickname={nickname} roomCount={displayRooms.length} />
+      <RoomList rooms={displayRooms} selectedIndex={selectedIndex} />
       <RoomsFooter themeMode={themeMode} />
     </Box>
   )

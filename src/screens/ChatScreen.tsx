@@ -1,19 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { Box, Text, useInput } from 'ink'
 import TextInput from 'ink-text-input'
-import { Client } from '@stomp/stompjs'
-import SockJS from 'sockjs-client'
 import { getMessages } from '../api.js'
-import { getToken, getWsUrl, getUser } from '../config.js'
+import { getUser } from '../config.js'
 import { useTheme } from '../context/ThemeContext.js'
-
-interface Message {
-  messageId: number
-  senderId: number
-  senderNickname: string
-  content: string
-  createdAt: string
-}
+import { useChatStore, type ChatMessage } from '../stores/chatStore.js'
 
 interface TerminalSize {
   columns: number
@@ -92,8 +83,8 @@ function ChatInput({ onSend, onScrollUp, onScrollDown, onScrollTop, onScrollBott
 // MessageList - 메시지 목록 (memo로 최적화)
 // ============================================
 interface MessageListProps {
-  messages: Message[]
-  visibleMessages: Message[]
+  messages: ChatMessage[]
+  visibleMessages: ChatMessage[]
   userId: number | undefined
   loading: boolean
   chatHeight: number
@@ -137,17 +128,18 @@ const MessageList = memo(function MessageList({
         ) : (
           visibleMessages.map((msg) => {
             const isMe = msg.senderId === userId
+            const content = msg.content || ''
             return (
               <Box key={msg.messageId} justifyContent={isMe ? 'flex-end' : 'flex-start'}>
                 {isMe ? (
                   <Box>
                     <Text color={theme.textMuted}>{formatTime(msg.createdAt)} </Text>
-                    <Text color={theme.myMessage}>◀ {msg.content}</Text>
+                    <Text color={theme.myMessage}>◀ {content}</Text>
                   </Box>
                 ) : (
                   <Box>
                     <Text color={theme.otherMessage} bold>{msg.senderNickname}</Text>
-                    <Text color={theme.otherMessage}>: {msg.content} </Text>
+                    <Text color={theme.otherMessage}>: {content} </Text>
                     <Text color={theme.textMuted}>{formatTime(msg.createdAt)}</Text>
                   </Box>
                 )}
@@ -227,20 +219,23 @@ const ChatFooter = memo(function ChatFooter({ messageCount, separatorLine }: Cha
 // ============================================
 export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: Props) {
   const { theme } = useTheme()
-  const [messages, setMessages] = useState<Message[]>([])
-  const [connected, setConnected] = useState(false)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [loading, setLoading] = useState(true)
   const [scrollOffset, setScrollOffset] = useState(0)
-  const clientRef = useRef<Client | null>(null)
-
-  // 읽음 처리용 ref
-  const lastSentReadIdRef = useRef<number | null>(null)
-  const pendingReadIdRef = useRef<number | null>(null)
-  const readTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const isInitialLoadRef = useRef(true)
 
   const userRef = useRef(getUser())
   const { userId } = userRef.current
+
+  // WebSocket store
+  const {
+    isConnected,
+    subscribeToRoom,
+    subscribeToReadStatus,
+    unsubscribeFromRoom,
+    sendMessage,
+    scheduleReadFlush,
+    flushRead,
+  } = useChatStore()
 
   const { rows, columns } = terminalSize
 
@@ -255,62 +250,44 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
   // 구분선 생성
   const separatorLine = '─'.repeat(Math.max(0, columns - 2))
 
-  // 읽음 처리 전송 함수
-  const flushRead = useCallback(() => {
-    const messageId = pendingReadIdRef.current
+  // 초기 읽음 처리를 위한 ref
+  const initialReadSentRef = useRef(false)
+  const lastMessageIdRef = useRef<number | null>(null)
 
-    if (readTimerRef.current) {
-      clearTimeout(readTimerRef.current)
-      readTimerRef.current = null
-    }
-
-    if (messageId === null) return
-    if (messageId === lastSentReadIdRef.current) return
-    if (!clientRef.current?.connected) return
-
-    clientRef.current.publish({
-      destination: `/pub/chat/rooms/${roomId}/read`,
-      body: JSON.stringify({ messageId })
-    })
-
-    lastSentReadIdRef.current = messageId
-    pendingReadIdRef.current = null
-  }, [roomId])
-
-  // 읽음 처리 스케줄링 (throttle)
-  const scheduleReadFlush = useCallback((messageId: number) => {
-    pendingReadIdRef.current = messageId
-    if (readTimerRef.current) return
-
-    readTimerRef.current = setTimeout(() => {
-      flushRead()
-    }, 300)
-  }, [flushRead])
-
+  // 메시지 로드 및 구독 설정
   useEffect(() => {
-    isInitialLoadRef.current = true
+    initialReadSentRef.current = false
     loadMessages()
-    connectWebSocket()
 
     return () => {
-      if (readTimerRef.current) {
-        clearTimeout(readTimerRef.current)
-        readTimerRef.current = null
+      // 방 나갈 때 구독 해제 및 읽음 처리 flush
+      if (lastMessageIdRef.current !== null) {
+        flushRead(roomId)
       }
-      if (pendingReadIdRef.current !== null && pendingReadIdRef.current !== lastSentReadIdRef.current) {
-        if (clientRef.current?.connected) {
-          clientRef.current.publish({
-            destination: `/pub/chat/rooms/${roomId}/read`,
-            body: JSON.stringify({ messageId: pendingReadIdRef.current })
-          })
-        }
-      }
-
-      if (clientRef.current) {
-        clientRef.current.deactivate()
-      }
+      unsubscribeFromRoom(roomId)
     }
   }, [roomId])
+
+  // 연결되면 구독 시작
+  useEffect(() => {
+    if (!isConnected) return
+
+    // 메시지 구독
+    subscribeToRoom(roomId, (message: ChatMessage) => {
+      setMessages((prev) => [...prev, message])
+      scheduleReadFlush(roomId, message.messageId)
+      lastMessageIdRef.current = message.messageId
+    })
+
+    // 읽음 상태 구독
+    subscribeToReadStatus(roomId)
+
+    // 초기 읽음 처리
+    if (!initialReadSentRef.current && lastMessageIdRef.current !== null) {
+      flushRead(roomId)
+      initialReadSentRef.current = true
+    }
+  }, [isConnected, roomId])
 
   const loadMessages = async () => {
     try {
@@ -320,68 +297,19 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
 
       if (data.length > 0) {
         const lastMsg = data[data.length - 1]
-        pendingReadIdRef.current = lastMsg.messageId
+        lastMessageIdRef.current = lastMsg.messageId
+        scheduleReadFlush(roomId, lastMsg.messageId)
       }
-    } catch (err) {
+    } catch {
       setLoading(false)
     }
   }
 
-  const connectWebSocket = () => {
-    const token = getToken()
-    const wsUrl = getWsUrl()
-
-    const client = new Client({
-      webSocketFactory: () => {
-        return new SockJS(wsUrl) as any
-      },
-      connectHeaders: {
-        Authorization: `Bearer ${token}`
-      },
-      reconnectDelay: 5000,
-      onConnect: () => {
-        setConnected(true)
-
-        client.subscribe(`/sub/chat/rooms/${roomId}`, (message) => {
-          try {
-            const msg = JSON.parse(message.body)
-            setMessages((prev) => [...prev, msg])
-            scheduleReadFlush(msg.messageId)
-          } catch (e) {
-            // ignore parse error
-          }
-        })
-
-        if (pendingReadIdRef.current !== null) {
-          flushRead()
-        }
-      },
-      onDisconnect: () => {
-        setConnected(false)
-      },
-      onStompError: (frame) => {
-        // STOMP error
-      }
-    })
-
-    clientRef.current = client
-    client.activate()
-  }
-
   // 메시지 전송 (ChatInput에서 호출)
   const handleSendMessage = useCallback((content: string) => {
-    if (!clientRef.current?.connected) return
-
-    clientRef.current.publish({
-      destination: `/pub/chat/rooms/${roomId}`,
-      body: JSON.stringify({
-        type: 'TEXT',
-        content
-      })
-    })
-
+    sendMessage(roomId, { type: 'TEXT', content })
     setScrollOffset(0)
-  }, [roomId])
+  }, [roomId, sendMessage])
 
   // 스크롤 핸들러
   const maxScroll = Math.max(0, messages.length - chatHeight)
@@ -411,7 +339,7 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
     <Box flexDirection="column" width={columns} height={rows}>
       <ChatHeader
         roomName={roomName}
-        connected={connected}
+        connected={isConnected}
         separatorLine={separatorLine}
       />
 
