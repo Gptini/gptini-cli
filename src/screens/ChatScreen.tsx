@@ -106,6 +106,23 @@ const MessageList = memo(function MessageList({
     return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
   }
 
+  const link = (url: string, text: string) =>
+    `\x1b]8;;${url}\x07${text}\x1b]8;;\x07`
+
+  const formatContent = (msg: ChatMessage): string => {
+    const url = msg.fileUrl || ''
+    switch (msg.type) {
+      case 'IMAGE':
+        return link(url, '[이미지]')
+      case 'GIF':
+        return link(url, '[GIF]')
+      case 'FILE':
+        return link(url, `[파일] ${msg.fileName || ''}`)
+      default:
+        return msg.content || ''
+    }
+  }
+
   const maxScroll = Math.max(0, messages.length - chatHeight)
   const hasMoreAbove = scrollOffset < maxScroll
   const hasMoreBelow = scrollOffset > 0
@@ -128,7 +145,7 @@ const MessageList = memo(function MessageList({
         ) : (
           visibleMessages.map((msg) => {
             const isMe = msg.senderId === userId
-            const content = msg.content || ''
+            const content = formatContent(msg)
             return (
               <Box key={msg.messageId} justifyContent={isMe ? 'flex-end' : 'flex-start'}>
                 {isMe ? (
