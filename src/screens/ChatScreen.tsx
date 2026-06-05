@@ -25,13 +25,12 @@ interface ChatInputProps {
   onSend: (message: string) => void
   onScrollUp: () => void
   onScrollDown: () => void
-  onScrollTop: () => void
   onScrollBottom: () => void
   onBack: () => void
   canScroll: boolean
 }
 
-function ChatInput({ onSend, onScrollUp, onScrollDown, onScrollTop, onScrollBottom, onBack, canScroll }: ChatInputProps) {
+function ChatInput({ onSend, onScrollUp, onScrollDown, onScrollBottom, onBack, canScroll }: ChatInputProps) {
   const { theme } = useTheme()
   const [input, setInput] = useState('')
 
@@ -55,9 +54,6 @@ function ChatInput({ onSend, onScrollUp, onScrollDown, onScrollTop, onScrollBott
       }
       if (key.downArrow || inputChar === 'j') {
         onScrollDown()
-      }
-      if (inputChar === 'g') {
-        onScrollTop()
       }
       if (inputChar === 'G') {
         onScrollBottom()
@@ -322,10 +318,6 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
     setScrollOffset(prev => Math.max(prev - 1, 0))
   }, [])
 
-  const handleScrollTop = useCallback(() => {
-    setScrollOffset(maxScroll)
-  }, [maxScroll])
-
   const handleScrollBottom = useCallback(() => {
     setScrollOffset(0)
   }, [])
@@ -361,7 +353,6 @@ export default function ChatScreen({ roomId, roomName, onBack, terminalSize }: P
         onSend={handleSendMessage}
         onScrollUp={handleScrollUp}
         onScrollDown={handleScrollDown}
-        onScrollTop={handleScrollTop}
         onScrollBottom={handleScrollBottom}
         onBack={onBack}
         canScroll={messages.length > chatHeight}
