@@ -3,6 +3,7 @@ import { Client } from '@stomp/stompjs'
 import type { StompSubscription } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { getToken, getWsUrl, getUser } from '../config.js'
+import { notifyNewMessage } from '../notify.js'
 
 // ============================================
 // Types
@@ -197,6 +198,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
           newRoomUpdates.set(roomUpdate.roomId, roomUpdate)
           return { roomUpdates: newRoomUpdates }
         })
+        if (roomUpdate.lastMessageSenderId !== get().connectedUserId) {
+          notifyNewMessage()
+        }
       } catch {
         // parse error 무시
       }
